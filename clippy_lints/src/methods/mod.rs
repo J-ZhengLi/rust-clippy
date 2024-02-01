@@ -109,6 +109,7 @@ mod unit_hash;
 mod unnecessary_fallible_conversions;
 mod unnecessary_filter_map;
 mod unnecessary_fold;
+mod unnecessary_indexing;
 mod unnecessary_iter_cloned;
 mod unnecessary_join;
 mod unnecessary_lazy_eval;
@@ -3977,6 +3978,30 @@ declare_clippy_lint! {
     "making no use of the \"map closure\" when calling `.map_or_else(|err| handle_error(err), |n| n)`"
 }
 
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for usage of `.is_empty()` then only access the first element through indexing.
+    ///
+    /// ### Why is this bad?
+    /// Readability. This could be written more concisely by using `.first()` followed by a `let` pattern.
+    ///
+    /// ### Example
+    /// ```no_run
+    /// if !seq.is_empty() {
+    ///     let x = seq[0];
+    /// }
+    /// ```
+    /// Use instead:
+    /// ```no_run
+    /// if let Some(x) = seq.first() {
+    /// }
+    /// ```
+    #[clippy::version = "1.77.0"]
+    pub UNNECESSARY_INDEXING,
+    complexity,
+    "using pattern matching with `.first()` to get the first element is more concise"
+}
+
 pub struct Methods {
     avoid_breaking_exported_api: bool,
     msrv: Msrv,
@@ -4136,6 +4161,7 @@ impl_lint_pass!(Methods => [
     STR_SPLIT_AT_NEWLINE,
     OPTION_AS_REF_CLONED,
     UNNECESSARY_RESULT_MAP_OR_ELSE,
+    UNNECESSARY_INDEXING,
 ]);
 
 /// Extracts a method call name, args, and `Span` of the method name.
@@ -4175,6 +4201,7 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
                 into_iter_on_ref::check(cx, expr, method_span, method_call.ident.name, receiver);
                 single_char_pattern::check(cx, expr, method_call.ident.name, receiver, args);
                 unnecessary_to_owned::check(cx, expr, method_call.ident.name, receiver, args, &self.msrv);
+                unnecessary_indexing::check(cx, expr, method_call.ident.name, receiver);
             },
             hir::ExprKind::Binary(op, lhs, rhs) if op.node == hir::BinOpKind::Eq || op.node == hir::BinOpKind::Ne => {
                 let mut info = BinaryExprInfo {

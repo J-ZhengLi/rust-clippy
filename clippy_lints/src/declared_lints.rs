@@ -450,6 +450,7 @@ pub(crate) static LINTS: &[&crate::LintInfo] = &[
     crate::methods::UNNECESSARY_FILTER_MAP_INFO,
     crate::methods::UNNECESSARY_FIND_MAP_INFO,
     crate::methods::UNNECESSARY_FOLD_INFO,
+    crate::methods::UNNECESSARY_INDEXING_INFO,
     crate::methods::UNNECESSARY_JOIN_INFO,
     crate::methods::UNNECESSARY_LAZY_EVALUATIONS_INFO,
     crate::methods::UNNECESSARY_LITERAL_UNWRAP_INFO,
