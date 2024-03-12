@@ -190,5 +190,29 @@ error: use of `unwrap_or_else` to construct default value
 LL |         let _ = stringy.unwrap_or_else(String::new);
    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `unwrap_or_default()`
 
-error: aborting due to 31 previous errors
+error: use of `or` followed by a function call
+  --> tests/ui/or_fun_call.rs:325:45
+   |
+LL |     let w = Some(PathBuf::new()).as_deref().or(Some(PathBuf::new()).as_deref());
+   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `or_else(|| Some(PathBuf::new()).as_deref())`
+
+error: use of `or` followed by a function call
+  --> tests/ui/or_fun_call.rs:326:33
+   |
+LL |     let x = Some(Path::new("")).or(Some(PathBuf::new()).as_deref());
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `or_else(|| Some(PathBuf::new()).as_deref())`
+
+error: use of `or` followed by a function call
+  --> tests/ui/or_fun_call.rs:327:45
+   |
+LL |     let y = Some("ok".to_string()).as_ref().or(Some(&"err".to_string()));
+   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `or_else(|| Some(&"err".to_string()))`
+
+error: use of `or` followed by a function call
+  --> tests/ui/or_fun_call.rs:329:48
+   |
+LL |     let z: Result<&str, &i32> = err.as_deref().or(to_upper("default").as_deref());
+   |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `or_else(|_| to_upper("default").as_deref())`
+
+error: aborting due to 35 previous errors
 

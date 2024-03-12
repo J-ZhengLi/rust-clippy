@@ -311,4 +311,22 @@ mod lazy {
     }
 }
 
+// issue 9205, passing ref to `or` method call.
+fn or_temp_value() {
+    use std::path::{Path, PathBuf};
+
+    fn to_upper(s: &str) -> Result<String, i32> {
+        Ok(s.to_uppercase())
+    }
+
+    // Somehow this was fine.
+    let good = Some(String::new()).as_deref().or(Some(String::new()).as_deref());
+    // But not these - error[E0515]
+    let w = Some(PathBuf::new()).as_deref().or_else(|| Some(PathBuf::new()).as_deref());
+    let x = Some(Path::new("")).or_else(|| Some(PathBuf::new()).as_deref());
+    let y = Some("ok".to_string()).as_ref().or_else(|| Some(&"err".to_string()));
+    let err: Result<String, i32> = Err(-1);
+    let z: Result<&str, &i32> = err.as_deref().or_else(|_| to_upper("default").as_deref());
+}
+
 fn main() {}
