@@ -1,0 +1,41 @@
+res: Expr {
+    hir_id: HirId(DefId(0:20 ~ unnecessary_cast[459d]::issue_12860::local_without_ty).4),
+    kind: MethodCall(
+        PathSegment {
+            ident: as_ptr#0,
+            hir_id: HirId(DefId(0:20 ~ unnecessary_cast[459d]::issue_12860::local_without_ty).5),
+            res: Err,
+            args: None,
+            infer_args: true,
+        },
+        Expr {
+            hir_id: HirId(DefId(0:20 ~ unnecessary_cast[459d]::issue_12860::local_without_ty).6),
+            kind: Path(
+                Resolved(
+                    None,
+                    Path {
+                        span: tests/ui/unnecessary_cast.rs:255:17: 255:18 (#0),
+                        res: Local(
+                            HirId(DefId(0:20 ~ unnecessary_cast[459d]::issue_12860::local_without_ty).2),
+                        ),
+                        segments: [
+                            PathSegment {
+                                ident: x#0,
+                                hir_id: HirId(DefId(0:20 ~ unnecessary_cast[459d]::issue_12860::local_without_ty).7),
+                                res: Local(
+                                    HirId(DefId(0:20 ~ unnecessary_cast[459d]::issue_12860::local_without_ty).2),
+                                ),
+                                args: None,
+                                infer_args: true,
+                            },
+                        ],
+                    },
+                ),
+            ),
+            span: tests/ui/unnecessary_cast.rs:255:17: 255:18 (#0),
+        },
+        [],
+        tests/ui/unnecessary_cast.rs:255:19: 255:27 (#0),
+    ),
+    span: tests/ui/unnecessary_cast.rs:255:17: 255:27 (#0),
+}

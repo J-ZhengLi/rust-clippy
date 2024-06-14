@@ -6,6 +6,7 @@ use clippy_utils::{get_parent_expr, is_hir_ty_cfg_dependant, is_ty_alias, path_t
 use rustc_ast::{LitFloatType, LitIntType, LitKind};
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
+use rustc_hir::def_id::LocalDefId;
 use rustc_hir::{self as hir, Expr, ExprKind, Lit, Node, Path, QPath, TyKind, UnOp};
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::lint::in_external_macro;
@@ -337,14 +338,20 @@ fn get_expr_hir_ty<'hir>(cx: &LateContext<'hir>, expr: &Expr<'hir>) -> Option<&'
             },
             _ => None,
         },
-        ExprKind::MethodCall(hir::PathSegment { hir_id, .. }, ..) | ExprKind::Call(Expr { hir_id, .. }, ..) => {
-            cx.tcx.hir().fn_decl_by_hir_id(*hir_id).and_then(|fn_decl| {
-                if let hir::FnRetTy::Return(ty) = fn_decl.output {
-                    Some(ty)
-                } else {
-                    None
-                }
-            })
+        ExprKind::MethodCall(..) => {
+            println!("res: {expr:#?}");
+            None
+        }
+        ExprKind::Call(Expr { hir_id, .. }, ..) => {
+            // println!("call span: {:?}, fn_decl: {:#?}", expr.span, cx.tcx.hir_node(*hir_id));
+            // cx.tcx.hir().fn_decl_by_hir_id(*hir_id).and_then(|fn_decl| {
+            //     if let hir::FnRetTy::Return(ty) = fn_decl.output {
+            //         Some(ty)
+            //     } else {
+            //         None
+            //     }
+            // })
+            None
         },
         _ => None,
     }
