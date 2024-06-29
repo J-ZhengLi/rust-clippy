@@ -11,8 +11,9 @@ use rustc_ast::util::parser::PREC_UNAMBIGUOUS;
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
 use rustc_hir::LangItem::{OptionNone, OptionSome};
-use rustc_hir::{BindingMode, Expr, ExprKind, HirId, Mutability, Pat, PatKind, Path, QPath};
+use rustc_hir::{self as hir, BindingMode, Expr, ExprKind, HirId, Mutability, Pat, PatKind, Path, QPath};
 use rustc_lint::LateContext;
+use rustc_middle::ty::adjustment::Adjust;
 use rustc_span::{sym, SyntaxContext};
 
 #[expect(clippy::too_many_arguments)]
@@ -65,15 +66,7 @@ where
 
     let some_expr = get_some_expr_fn(cx, some_pat, some_expr, expr_ctxt)?;
 
-    // These two lints will go back and forth with each other.
-    if cx.typeck_results().expr_ty(some_expr.expr) == cx.tcx.types.unit
-        && !is_lint_allowed(cx, OPTION_MAP_UNIT_FN, expr.hir_id)
-    {
-        return None;
-    }
-
-    // `map` won't perform any adjustments.
-    if !cx.typeck_results().expr_adjustments(some_expr.expr).is_empty() {
+    if !should_lint(cx, expr, some_expr.expr) {
         return None;
     }
 
@@ -273,4 +266,80 @@ pub(super) fn try_parse_pattern<'tcx>(
 // Checks for the `None` value.
 fn is_none_expr(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     is_res_lang_ctor(cx, path_res(cx, peel_blocks(expr)), OptionNone)
+}
+
+fn expr_ty_adjusted(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
+    cx.typeck_results()
+        .expr_adjustments(expr)
+        .iter()
+        // We do not care about exprs with `NeverToAny` adjustments, such as `panic!` call.
+        .filter(|adj| !matches!(adj.kind, Adjust::NeverToAny))
+        .next()
+        .is_some()
+}
+
+fn expr_has_type_coercion<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> bool {
+    if expr.span.from_expansion() {
+        return false;
+    }
+    if expr_ty_adjusted(cx, expr) {
+        return true;
+    }
+
+    // Identify coercion sites and recursively check it those sites
+    // actually has type adjustments.
+    match expr.kind {
+        // Function/method calls, including enum initialization.
+        ExprKind::Call(_, args) | ExprKind::MethodCall(_, _, args, _) => {
+            args.iter().any(|arg| expr_has_type_coercion(cx, arg))
+        },
+        // Struct/union initialization.
+        ExprKind::Struct(_, fields, _) => {
+            fields.iter().map(|expr_field| expr_field.expr).any(|ex| expr_has_type_coercion(cx, ex))
+        },
+        // Function results, including the final line of a block or a `return` expression.
+        ExprKind::Block(hir::Block { expr: Some(ref ret_expr), .. }, _) |
+        ExprKind::Ret(Some(ref ret_expr)) => expr_has_type_coercion(cx, ret_expr),
+
+        // ===== Coercion-propagation expressions =====
+
+        // Array, where the type is `[U; n]`.
+        ExprKind::Array(elems) |
+        // Tuple, `(U_0, U_1, ..., U_n)`.
+        ExprKind::Tup(elems) => {
+            elems.iter().any(|elem| expr_has_type_coercion(cx, elem))
+        },
+        // Array but with repeating syntax.
+        ExprKind::Repeat(rep_elem, _) => expr_has_type_coercion(cx, rep_elem),
+        // Others that may contain coercion sites.
+        ExprKind::If(_, then, maybe_else) => {
+            expr_has_type_coercion(cx, then) || maybe_else.map(|e| expr_has_type_coercion(cx, e)).unwrap_or_default()
+        }
+        ExprKind::Match(_, arms, _) => {
+            arms.iter().map(|arm| arm.body).any(|body| expr_has_type_coercion(cx, body))
+        }
+        _ => false
+    }
+}
+
+fn should_lint<'tcx>(cx: &LateContext<'tcx>, match_expr: &Expr<'tcx>, some_expr: &Expr<'tcx>) -> bool {
+    let typeck = cx.typeck_results();
+    let some_expr_ty = typeck.expr_ty(some_expr);
+
+    // These two lints will go back and forth with each other.
+    if some_expr_ty.is_unit() && !is_lint_allowed(cx, OPTION_MAP_UNIT_FN, match_expr.hir_id) {
+        return false;
+    }
+
+    // `map` won't perform any adjustments.
+    // However, if the ty of `Some` arg is unit, type coercions should be fine.
+    if !some_expr_ty.is_unit()
+        // TODO: this needs to be tested
+        && !some_expr_ty.is_scalar()
+        && expr_has_type_coercion(cx, match_expr)
+    {
+        return false;
+    }
+
+    true
 }
